@@ -1,4 +1,6 @@
 api:
+  secret_key: xxx
+  secret_id: xxxx
   host:
     cns: cns.api.qcloud.com
   url: /v2/index.php
