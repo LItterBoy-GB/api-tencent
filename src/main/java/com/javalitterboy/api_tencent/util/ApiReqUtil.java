@@ -48,10 +48,10 @@ import java.util.*;
 @Component
 public class ApiReqUtil {
 
-    @Value("secret_key")
-    private String secret_key = "ILBm8F8mCNJ6g181e3D8oFRP9euviGZd";
-    @Value("secret_id")
-    private String secret_id = "AKIDe7MM8gW5vWt1uYw72jBPOAhz2pNeqgLk";
+    @Value("api.secret_key")
+    private String secret_key;
+    @Value("api.secret_id")
+    private String secret_id;
 
     private static Logger logger = LoggerFactory.getLogger(ApiReqUtil.class);
 
