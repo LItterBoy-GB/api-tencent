@@ -42,7 +42,7 @@ public class RecordService {
     }
 
     // 根据id更新域名解析记录
-    public JSONArray update_record(String domain, int recordId, String subDomain,
+    public Object update_record(String domain, int recordId, String subDomain,
                                    String recordType, String recordLine, String value, Integer ttl, Integer mx) throws IOException {
         HashMap<String, Object> hashMap = new HashMap<>();
         hashMap.put("Action", "RecordModify");
@@ -56,6 +56,6 @@ public class RecordService {
             hashMap.put("ttl", ttl);
         if(mx!=null)
             hashMap.put("mx", mx);
-        return (JSONArray) apiReqUtil.apiRequestPost(hashMap, cns_domain+url);
+        return apiReqUtil.apiRequestPost(hashMap, cns_domain+url);
     }
 }
