@@ -22,10 +22,10 @@ public class RecordService {
     @Resource
     private ApiReqUtil apiReqUtil;
 
-    @Value("api.host.cns")
+    @Value("${api.host.cns}")
     private String cns_domain;
 
-    @Value("api.url")
+    @Value("${api.url}")
     private String url;
 
     // 获取指定域名解析记录
