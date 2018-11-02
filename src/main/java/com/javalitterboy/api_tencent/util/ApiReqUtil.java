@@ -88,6 +88,7 @@ public class ApiReqUtil {
             HttpEntity resEntity = response.getEntity();
             String message = EntityUtils.toString(resEntity, "utf-8");
             JSONObject object = JSON.parseObject(message);
+            logger.info("响应数据:" + message);
             if (((int) object.get("code")) == 0) {
                 return object.get("data");
             } else {
