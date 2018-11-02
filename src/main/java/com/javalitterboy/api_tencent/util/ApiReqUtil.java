@@ -48,9 +48,9 @@ import java.util.*;
 @Component
 public class ApiReqUtil {
 
-    @Value("api.secret_key")
+    @Value("${api.secret_key}")
     private String secret_key;
-    @Value("api.secret_id")
+    @Value("${api.secret_id}")
     private String secret_id;
 
     private static Logger logger = LoggerFactory.getLogger(ApiReqUtil.class);
