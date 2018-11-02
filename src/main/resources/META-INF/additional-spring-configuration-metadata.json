@@ -1,0 +1,14 @@
+{
+  "properties": [
+    {
+      "name": "api.host.cns",
+      "type": "java.lang.String",
+      "description": "Description for api.host.cns."
+    },
+    {
+      "name": "api.url",
+      "type": "java.lang.String",
+      "description": "Description for api.url."
+    }
+  ]
+}

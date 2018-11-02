@@ -1,5 +1,6 @@
 package com.javalitterboy.api_tencent.util;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -19,6 +20,10 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -40,54 +45,63 @@ import java.util.*;
  * @author: JavaLitterBoy
  * @create: 2018-11-02 14:18
  **/
-public class Utils {
+@Component
+public class ApiReqUtil {
 
-    private static final String SECRET_KEY = "xxxx";
-    private static final String SECRET_ID = "xxxx";
+    @Value("secret_key")
+    private String secret_key = "ILBm8F8mCNJ6g181e3D8oFRP9euviGZd";
+    @Value("secret_id")
+    private String secret_id = "AKIDe7MM8gW5vWt1uYw72jBPOAhz2pNeqgLk";
+
+    private static Logger logger = LoggerFactory.getLogger(ApiReqUtil.class);
 
     // 发起API请求 get方式
-    public static JSONObject apiRequestGet(Map<String, String> params, String url_path) throws IOException {
-        Map<String, String> map = handle_params(params, "GET", url_path);
+    public Object apiRequestGet(Map<String, Object> params, String url_path) throws IOException {
+        Map<String, Object> map = handle_params(params, "GET", url_path);
         HttpGet httpGet = new HttpGet("https://" + url_path + "?" + hashMapToGetParams(map, true));
 
         HttpClient client = sslClient();
         HttpResponse response = client.execute(httpGet);
 
-        if (response.getStatusLine().getStatusCode() == 200) {
-            HttpEntity resEntity = response.getEntity();
-            String message = EntityUtils.toString(resEntity, "utf-8");
-            System.out.println(message);
-        } else {
-            System.out.println("请求失败");
-        }
-
-        return null;
+        return handle_response(response);
     }
 
     // 发起API请求 post方式
-    public static JSONObject apiRequestPost(Map<String, String> params, String url_path) throws IOException {
-        Map<String, String> map = handle_params(params, "POST", url_path);
+    public Object apiRequestPost(Map<String, Object> params, String url_path) throws IOException {
+        Map<String, Object> map = handle_params(params, "POST", url_path);
         HttpPost httpPost = new HttpPost("https://" + url_path);
+        logger.info("请求链接:https://" + url_path);
         httpPost.setHeader("Content-type", "application/x-www-form-urlencoded");
 
         // POST请求也要对 参数进行url_encode  不知为何无法使用json提交
-        StringEntity entity = new StringEntity(hashMapToGetParams(map,true), Charset.forName("UTF-8"));
+        String req_data = hashMapToGetParams(map, true);
+        logger.info("请求数据:" + req_data);
+        StringEntity entity = new StringEntity(req_data, Charset.forName("UTF-8"));
         httpPost.setEntity(entity);
         HttpClient client = sslClient();
         HttpResponse response = client.execute(httpPost);
+        return handle_response(response);
+    }
 
+    private Object handle_response(HttpResponse response) throws IOException {
         if (response.getStatusLine().getStatusCode() == 200) {
             HttpEntity resEntity = response.getEntity();
             String message = EntityUtils.toString(resEntity, "utf-8");
-            System.out.println(message);
+            JSONObject object = JSON.parseObject(message);
+            if (((int) object.get("code")) == 0) {
+                return object.get("data");
+            } else {
+                logger.error((String) object.get("message"));
+                return null;
+            }
         } else {
-            System.out.println("请求失败");
+            logger.error("请求失败:http响应码" + response.getStatusLine().getStatusCode());
+            return null;
         }
-        return null;
     }
 
     // 获取支持ssl 的客户端
-    private static HttpClient sslClient() {
+    private HttpClient sslClient() {
         try {
             // 在调用SSL之前需要重写验证方法，取消检测SSL
             X509TrustManager trustManager = new X509TrustManager() {
@@ -124,22 +138,24 @@ public class Utils {
     }
 
     //请求参数处理  添加公共请求参数 添加签名
-    private static Map<String, String> handle_params(Map<String, String> params, String req_method, String url_path) throws UnsupportedEncodingException {
+    private Map<String, Object> handle_params(Map<String, Object> params, String req_method, String url_path) throws UnsupportedEncodingException {
         params.put("Timestamp", String.valueOf(System.currentTimeMillis() / 1000));
         params.put("Nonce", String.valueOf((long) (Math.random() * 100000)));
-        params.put("SecretId", SECRET_ID);
+        params.put("SecretId", this.secret_id);
         params.put("Region", "gz");
-        params.put("Signature", sign(params, req_method, url_path));       // 添加签名
+        String sign = sign(params, req_method, url_path);
+        logger.info("签名:" + sign);
+        params.put("Signature", sign);       // 添加签名
         return params;
     }
 
     // 签名处理
-    private static String sign(Map<String, String> params, String req_method, String url_path) throws UnsupportedEncodingException {
+    private String sign(Map<String, Object> params, String req_method, String url_path) throws UnsupportedEncodingException {
         if (params == null)
             return null;
 
         // 参数排序
-        Map<String, String> sortMap = new TreeMap<>(String::compareTo);
+        Map<String, Object> sortMap = new TreeMap<>(String::compareTo);
         sortMap.putAll(params);
 
         // 根据签名算法进行hash
@@ -150,20 +166,19 @@ public class Utils {
 
         // 拼接字符串
         String sb = req_method + url_path + "?" + hashMapToGetParams(sortMap, false);
-        System.out.println("原文字符串:" + sb);
-        System.out.println("签名:" + sha_HMAC(sb, sign_method));
+        logger.info("原文字符串:" + sb);
         return sha_HMAC(sb, sign_method);
     }
 
     // hashMap 转 get 请求参数
-    private static String hashMapToGetParams(Map<String, String> map, boolean is_url_encode) throws UnsupportedEncodingException {
+    private String hashMapToGetParams(Map<String, Object> map, boolean is_url_encode) throws UnsupportedEncodingException {
         StringBuilder sb = new StringBuilder();
         Set<String> keys = map.keySet();
         if (is_url_encode) {
             for (String key : keys) {
                 sb.append(URLEncoder.encode(key, "UTF-8"))
                         .append("=")
-                        .append(URLEncoder.encode(map.get(key), "UTF-8"))
+                        .append(URLEncoder.encode(String.valueOf(map.get(key)), "UTF-8"))
                         .append("&");
             }
 
@@ -179,15 +194,15 @@ public class Utils {
         return sb.toString();
     }
 
-    private static String sha_HMAC(String message, String method) {
+    private String sha_HMAC(String message, String method) {
         try {
-            SecretKeySpec secret_key = new SecretKeySpec(SECRET_KEY.getBytes(), method);
+            SecretKeySpec secret = new SecretKeySpec(this.secret_key.getBytes(), method);
             Mac HMAC = Mac.getInstance(method);
-            HMAC.init(secret_key);
+            HMAC.init(secret);
             byte[] bytes = HMAC.doFinal(message.getBytes());
             return Base64.getEncoder().encodeToString(bytes);
         } catch (Exception e) {
-            System.out.println("Error " + method + " ===========" + e.getMessage());
+            logger.error(method + " ===========" + e.getMessage());
         }
         return null;
     }
