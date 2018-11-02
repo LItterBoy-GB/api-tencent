@@ -38,10 +38,10 @@ public class IPController {
                             subDomain, "A", "默认", ip, null, null);
                 }
             }
-            return "请求成功";
+            return "success";
         } catch (IOException e) {
             e.printStackTrace();
-            return "请求失败";
+            return "fail";
         }
     }
 }
