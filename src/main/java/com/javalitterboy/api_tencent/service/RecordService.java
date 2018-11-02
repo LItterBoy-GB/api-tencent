@@ -56,8 +56,6 @@ public class RecordService {
             hashMap.put("ttl", ttl);
         if(mx!=null)
             hashMap.put("mx", mx);
-        JSONObject res = (JSONObject) apiReqUtil.apiRequestPost(hashMap, cns_domain+url);
-        return (JSONArray) res.get("records");
-
+        return (JSONArray) apiReqUtil.apiRequestPost(hashMap, cns_domain+url);
     }
 }
