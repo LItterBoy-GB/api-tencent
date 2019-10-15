@@ -177,10 +177,18 @@ public class ApiReqUtil {
         Set<String> keys = map.keySet();
         if (is_url_encode) {
             for (String key : keys) {
-                sb.append(URLEncoder.encode(key, "UTF-8"))
-                        .append("=")
-                        .append(URLEncoder.encode(String.valueOf(map.get(key)), "UTF-8"))
-                        .append("&");
+                if("recordLine".equals(key)){
+                    sb.append(URLEncoder.encode(key, "UTF-8"))
+                            .append("=")
+                            .append("%E9%BB%98%E8%AE%A4")
+                            .append("&");
+
+                }else {
+                    sb.append(URLEncoder.encode(key, "UTF-8"))
+                            .append("=")
+                            .append(URLEncoder.encode(String.valueOf(map.get(key)), "UTF-8"))
+                            .append("&");
+                }
             }
 
         } else {
