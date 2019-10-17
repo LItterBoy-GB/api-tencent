@@ -27,16 +27,13 @@ public class IPController {
     private static Logger logger = LoggerFactory.getLogger(IPController.class);
 
     @GetMapping("/update_ip")
-    public String update_ip(@RequestParam("ip") String ip){
+    public String update_ip(@RequestParam("ip") String ip, @RequestParam("sub") String subDomain) {
         try {
-            logger.info("更换ip:"+ip);
-            String subDomains[] = {"*","www"};
-            for(String subDomain:subDomains) {
-                JSONArray records = recordService.record_list("stustyle.cn", subDomain, "A");
-                for (Object object : records) {
-                    recordService.update_record("stustyle.cn", (int) (((JSONObject) object).get("id")),
-                            subDomain, "A", "默认", ip, null, null);
-                }
+            logger.info("更换ip:" + ip);
+            JSONArray records = recordService.recordList("stustyle.cn", subDomain, "A");
+            for (Object object : records) {
+                recordService.updateRecord("stustyle.cn", (String) (((JSONObject) object).get("id")),
+                        subDomain, "A", "0", ip, null, null);
             }
             return "success";
         } catch (IOException e) {
