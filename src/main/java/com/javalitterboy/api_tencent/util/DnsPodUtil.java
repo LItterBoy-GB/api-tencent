@@ -8,7 +8,6 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
@@ -25,8 +24,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -40,59 +37,45 @@ import java.security.cert.X509Certificate;
 import java.util.*;
 
 /**
- * @program: api_tencent
- * @description:
- * @author: JavaLitterBoy
- * @create: 2018-11-02 14:18
- **/
+ * DnsPodUtil
+ *
+ * @author 14183
+ */
 @Component
-public class ApiReqUtil {
+public class DnsPodUtil {
 
-    @Value("${api.secret_key}")
-    private String secret_key;
-    @Value("${api.secret_id}")
-    private String secret_id;
+    @Value("${api.login_token}")
+    private String loginToken;
 
-    private static Logger logger = LoggerFactory.getLogger(ApiReqUtil.class);
-
-    // 发起API请求 get方式
-    public Object apiRequestGet(Map<String, Object> params, String url_path) throws IOException {
-        Map<String, Object> map = handle_params(params, "GET", url_path);
-        HttpGet httpGet = new HttpGet("https://" + url_path + "?" + hashMapToGetParams(map, true));
-
-        HttpClient client = sslClient();
-        HttpResponse response = client.execute(httpGet);
-
-        return handle_response(response);
-    }
+    private static Logger logger = LoggerFactory.getLogger(DnsPodUtil.class);
 
     // 发起API请求 post方式
-    public Object apiRequestPost(Map<String, Object> params, String url_path) throws IOException {
-        Map<String, Object> map = handle_params(params, "POST", url_path);
-        HttpPost httpPost = new HttpPost("https://" + url_path);
-        logger.info("请求链接:https://" + url_path);
+    public JSONObject apiRequestPost(Map<String, Object> params, String urlPath) throws IOException {
+        Map<String, Object> map = handleParams(params);
+        HttpPost httpPost = new HttpPost("https://" + urlPath);
+        logger.info("请求链接:https://" + urlPath);
         httpPost.setHeader("Content-type", "application/x-www-form-urlencoded");
 
         // POST请求也要对 参数进行url_encode  不知为何无法使用json提交
-        String req_data = hashMapToGetParams(map, true);
-        logger.info("请求数据:" + req_data);
-        StringEntity entity = new StringEntity(req_data, Charset.forName("UTF-8"));
+        String reqData = hashMapToGetParams(map);
+        logger.info("请求数据:" + reqData);
+        StringEntity entity = new StringEntity(reqData, Charset.forName("UTF-8"));
         httpPost.setEntity(entity);
         HttpClient client = sslClient();
         HttpResponse response = client.execute(httpPost);
-        return handle_response(response);
+        return handleResponse(response);
     }
 
-    private Object handle_response(HttpResponse response) throws IOException {
+    private JSONObject handleResponse(HttpResponse response) throws IOException {
         if (response.getStatusLine().getStatusCode() == 200) {
             HttpEntity resEntity = response.getEntity();
             String message = EntityUtils.toString(resEntity, "utf-8");
             JSONObject object = JSON.parseObject(message);
             logger.info("响应数据:" + message);
-            if (((int) object.get("code")) == 0) {
-                return object.get("data");
+            if("1".equals(((JSONObject)(object.get("status"))).get("code"))){
+                return object;
             } else {
-                logger.error((String) object.get("message"));
+                logger.error((String) ((JSONObject)(object.get("status"))).get("message"));
                 return null;
             }
         } else {
@@ -101,7 +84,10 @@ public class ApiReqUtil {
         }
     }
 
-    // 获取支持ssl 的客户端
+    /**
+     * 获取支持ssl 的客户端
+     * @return
+     */
     private HttpClient sslClient() {
         try {
             // 在调用SSL之前需要重写验证方法，取消检测SSL
@@ -138,81 +124,33 @@ public class ApiReqUtil {
         }
     }
 
-    //请求参数处理  添加公共请求参数 添加签名
-    private Map<String, Object> handle_params(Map<String, Object> params, String req_method, String url_path) throws UnsupportedEncodingException {
-        params.put("Timestamp", String.valueOf(System.currentTimeMillis() / 1000));
-        params.put("Nonce", String.valueOf((long) (Math.random() * 100000)));
-        params.put("SecretId", this.secret_id);
-        params.put("Region", "gz");
-        String sign = sign(params, req_method, url_path);
-        logger.info("签名:" + sign);
-        params.put("Signature", sign);       // 添加签名
+    /**
+     * 请求参数处理  添加公共请求参数 添加签名
+     * @param params
+     * @return
+     */
+    private Map<String, Object> handleParams(Map<String, Object> params) {
+        params.put("login_token", this.loginToken);
+        params.put("format", "json");
         return params;
     }
 
-    // 签名处理
-    private String sign(Map<String, Object> params, String req_method, String url_path) throws UnsupportedEncodingException {
-        if (params == null)
-            return null;
-
-        // 参数排序
-        Map<String, Object> sortMap = new TreeMap<>(String::compareTo);
-        sortMap.putAll(params);
-
-        // 根据签名算法进行hash
-        String sign_method = "HmacSHA1";    // 默认 HmacSHA1
-        if ("HmacSHA256".equals(sortMap.get("SignatureMethod"))) {
-            sign_method = "HmacSHA256";
-        }
-
-        // 拼接字符串
-        String sb = req_method + url_path + "?" + hashMapToGetParams(sortMap, false);
-        logger.info("原文字符串:" + sb);
-        return sha_HMAC(sb, sign_method);
-    }
-
-    // hashMap 转 get 请求参数
-    private String hashMapToGetParams(Map<String, Object> map, boolean is_url_encode) throws UnsupportedEncodingException {
+    /**
+     * hashMap 转 get 请求参数
+     * @param map
+     * @return
+     * @throws UnsupportedEncodingException
+     */
+    private String hashMapToGetParams(Map<String, Object> map) throws UnsupportedEncodingException {
         StringBuilder sb = new StringBuilder();
         Set<String> keys = map.keySet();
-        if (is_url_encode) {
-            for (String key : keys) {
-                if("recordLine".equals(key)){
-                    sb.append(URLEncoder.encode(key, "UTF-8"))
-                            .append("=")
-                            .append("%E9%BB%98%E8%AE%A4")
-                            .append("&");
-
-                }else {
-                    sb.append(URLEncoder.encode(key, "UTF-8"))
-                            .append("=")
-                            .append(URLEncoder.encode(String.valueOf(map.get(key)), "UTF-8"))
-                            .append("&");
-                }
-            }
-
-        } else {
-            for (String key : keys) {
-                sb.append(key)
-                        .append("=")
-                        .append(map.get(key))
-                        .append("&");
-            }
+        for (String key : keys) {
+            sb.append(URLEncoder.encode(key, "UTF-8"))
+                    .append("=")
+                    .append(URLEncoder.encode(String.valueOf(map.get(key)), "UTF-8"))
+                    .append("&");
         }
         sb.deleteCharAt(sb.length() - 1);
         return sb.toString();
-    }
-
-    private String sha_HMAC(String message, String method) {
-        try {
-            SecretKeySpec secret = new SecretKeySpec(this.secret_key.getBytes(), method);
-            Mac HMAC = Mac.getInstance(method);
-            HMAC.init(secret);
-            byte[] bytes = HMAC.doFinal(message.getBytes());
-            return Base64.getEncoder().encodeToString(bytes);
-        } catch (Exception e) {
-            logger.error(method + " ===========" + e.getMessage());
-        }
-        return null;
     }
 }

@@ -2,7 +2,7 @@ package com.javalitterboy.api_tencent.service;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.javalitterboy.api_tencent.util.ApiReqUtil;
+import com.javalitterboy.api_tencent.util.DnsPodUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -20,42 +20,60 @@ import java.util.HashMap;
 public class RecordService {
 
     @Resource
-    private ApiReqUtil apiReqUtil;
+    private DnsPodUtil apiReqUtil;
 
-    @Value("${api.host.cns}")
-    private String cns_domain;
-
-    @Value("${api.url}")
-    private String url;
-
-    // 获取指定域名解析记录
-    public JSONArray record_list(String domain, String subDomain, String recordType) throws IOException {
-        HashMap<String, Object> hashMap = new HashMap<>();
-        hashMap.put("Action", "RecordList");
+    /**
+     * 获取指定域名解析记录
+     * @param domain
+     * @param subDomain
+     * @param recordType
+     * @return
+     * @throws IOException
+     */
+    public JSONArray recordList(String domain, String subDomain, String recordType) throws IOException {
+        HashMap<String, Object> hashMap = new HashMap<>(3);
         hashMap.put("domain", domain);
-        if (subDomain != null)
-            hashMap.put("subDomain", subDomain);
-        if (recordType != null)
-            hashMap.put("recordType", recordType);
-        JSONObject res = (JSONObject) apiReqUtil.apiRequestPost(hashMap, cns_domain+url);
+        if (subDomain != null) {
+            hashMap.put("sub_domain", subDomain);
+        }
+        if (recordType != null) {
+            hashMap.put("record_type", recordType);
+        }
+        JSONObject res = apiReqUtil.apiRequestPost(hashMap, "dnsapi.cn/Record.List");
         return (JSONArray) res.get("records");
     }
 
-    // 根据id更新域名解析记录
-    public Object update_record(String domain, int recordId, String subDomain,
-                                   String recordType, String recordLine, String value, Integer ttl, Integer mx) throws IOException {
-        HashMap<String, Object> hashMap = new HashMap<>();
-        hashMap.put("Action", "RecordModify");
+    /**
+     * 根据id更新域名解析记录
+     * @param domain
+     * @param recordId
+     * @param subDomain
+     * @param recordType
+     * @param recordLineId
+     * @param value
+     * @param ttl
+     * @param mx
+     * @return
+     * @throws IOException
+     */
+    public JSONObject updateRecord(String domain, String recordId, String subDomain,
+                                   String recordType, String recordLineId, String value, Integer ttl, Integer mx) throws IOException {
+        HashMap<String, Object> hashMap = new HashMap<>(6);
         hashMap.put("domain", domain);
-        hashMap.put("subDomain", subDomain);
-        hashMap.put("recordType", recordType);
-        hashMap.put("recordId", recordId);
-        hashMap.put("recordLine", recordLine);
+        hashMap.put("record_id", recordId);
+        hashMap.put("sub_domain", subDomain);
+        hashMap.put("record_type", recordType);
+        hashMap.put("record_line", recordLineId);
+        hashMap.put("record_line_id", recordLineId);
         hashMap.put("value", value);
-        if(ttl!=null)
+        if(ttl!=null) {
             hashMap.put("ttl", ttl);
-        if(mx!=null)
+        }
+        if(mx!=null) {
             hashMap.put("mx", mx);
-        return apiReqUtil.apiRequestPost(hashMap, cns_domain+url);
+        }else{
+            hashMap.put("mx", 20);
+        }
+        return apiReqUtil.apiRequestPost(hashMap, "dnsapi.cn/Record.Modify");
     }
 }

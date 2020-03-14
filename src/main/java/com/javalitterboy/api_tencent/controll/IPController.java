@@ -33,22 +33,14 @@ public class IPController {
 
     private static Logger logger = LoggerFactory.getLogger(IPController.class);
 
-    @GetMapping("/")
-    public String index(){
-        return "hello frp";
-    }
-
     @GetMapping("/update_ip")
-    public String update_ip(@RequestParam("ip") String ip){
+    public String update_ip(@RequestParam("ip") String ip, @RequestParam("sub") String subDomain) {
         try {
-            logger.info("更换ip:"+ip);
-//            String subDomains[] = {"*","www"};
-            for(String subDomain:subDomains) {
-                JSONArray records = recordService.record_list(domain, subDomain, "A");
-                for (Object object : records) {
-                    recordService.update_record(domain, (int) (((JSONObject) object).get("id")),
-                            subDomain, "A", "默认", ip, null, null);
-                }
+            logger.info("更换ip:" + ip);
+            JSONArray records = recordService.recordList(domain, subDomain, "A");
+            for (Object object : records) {
+                recordService.updateRecord(domain, (String) (((JSONObject) object).get("id")),
+                        subDomain, "A", "0", ip, null, null);
             }
             return "success";
         } catch (IOException e) {
