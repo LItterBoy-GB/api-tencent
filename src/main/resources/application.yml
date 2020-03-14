@@ -4,3 +4,5 @@ api:
   host:
     cns: cns.api.qcloud.com
   url: /v2/index.php
+  domain: stustyle.cn
+  sub_domains: *,www
